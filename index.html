@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>屏幕录制工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: transparent;
+        }
+
+        .container {
+            width: 100%;
+            background-color: transparent;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        .control-panel {
+            height: 32px;
+            display: flex;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button.start {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        button.stop {
+            background-color: #f44336;
+            color: white;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .selection-info {
+            line-height: 32px;
+            font-size: 14px;
+            color: #ee2121;
+        }
+
+        #selection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.3);
+            display: none;
+            cursor: crosshair;
+            background-color: transparent;
+            z-index: 9999;
+        }
+
+        #selection-box {
+            position: absolute;
+            border: 2px solid #11d418;
+            background: rgba(76, 175, 80, 0.1);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="control-panel">
+        <button id="select-area" class="start">选择区域</button>
+        <button id="start-capture" class="start" disabled>开始录制</button>
+        <button id="stop-capture" class="stop" disabled>停止录制</button>
+        <button id="mini-window" class="stop">最小化</button>
+        <button id="close-window" class="stop">关闭应用</button>
+        <div class="selection-info">
+            <p>选择区域: <span id="selection-coords">未选择</span></p>
+        </div>
+    </div>
+
+</div>
+<div id="selection-overlay">
+    <div id="selection-box"></div>
+</div>
+
+<script>
+    const {ipcRenderer} = require('electron');
+    const config = require('./config.json');
+    const dayjs = require('dayjs');
+
+    let isSelecting = false;
+    let startX, startY;
+    let selectedArea = null;
+
+    const overlay = document.getElementById('selection-overlay');
+    const selectionBox = document.getElementById('selection-box');
+    const selectAreaBtn = document.getElementById('select-area');
+    const startCaptureBtn = document.getElementById('start-capture');
+    const stopCaptureBtn = document.getElementById('stop-capture');
+    const closeWindowBtn = document.getElementById('close-window');
+    const miniWindowBtn = document.getElementById('mini-window');
+    const selectionCoords = document.getElementById('selection-coords');
+
+    selectAreaBtn.addEventListener('click', () => {
+        overlay.style.display = 'block';
+        isSelecting = true;
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+    });
+
+    overlay.addEventListener('mousedown', (e) => {
+        if (isSelecting) {
+            startX = e.clientX;
+            startY = e.clientY;
+            selectionBox.style.position = 'fixed';
+            selectionBox.style.left = startX + 'px';
+            selectionBox.style.top = startY + 'px';
+            selectionBox.style.width = '0';
+            selectionBox.style.height = '0';
+            selectionBox.style.display = 'block';
+            selectionBox.style.zIndex = '10000';
+        }
+    });
+
+    overlay.addEventListener('mousemove', (e) => {
+        if (isSelecting && startX !== undefined) {
+            const width = e.clientX - startX;
+            const height = e.clientY - startY;
+            selectionBox.style.width = Math.abs(width) + 'px';
+            selectionBox.style.height = Math.abs(height) + 'px';
+            selectionBox.style.left = (width < 0 ? e.screenX : startX) + 'px';
+            selectionBox.style.top = (height < 0 ? e.screenY : startY) + 'px';
+        }
+    });
+
+    overlay.addEventListener('mouseup', (e) => {
+        if (isSelecting) {
+            isSelecting = false;
+            overlay.style.display = 'none';
+
+            const width = Math.abs(e.clientX - startX);
+            const height = Math.abs(e.clientY - startY);
+            const x = Math.min(e.clientX, startX);
+            const y = Math.min(e.clientY, startY);
+
+            selectedArea = {x, y, width, height};
+            selectionCoords.textContent = `X: ${x}, Y: ${y}, 宽度: ${width}, 高度: ${height}`;
+            startCaptureBtn.disabled = false;
+            // 恢复窗口
+            ipcRenderer.send('restore-window');
+        }
+    });
+
+
+    startCaptureBtn.addEventListener('click', () => {
+          // 恢复窗口
+        if (selectedArea) {
+            const captureConfig = {
+                ...selectedArea,
+                ...config,
+                outputDir: config.outputDir + '/' + dayjs().format('YYYYMMDDHHmmss'),
+            };
+            ipcRenderer.send('start-capture',captureConfig);
+            startCaptureBtn.disabled = true;
+            stopCaptureBtn.disabled = false;
+            selectAreaBtn.disabled = true;
+            startCaptureBtn.innerText = '录制中...';
+        }
+    });
+
+    stopCaptureBtn.addEventListener('click', (e) => {
+        ipcRenderer.send('stop-capture');
+        startCaptureBtn.disabled = false;
+        stopCaptureBtn.disabled = true;
+        selectAreaBtn.disabled = false;
+        startCaptureBtn.innerText = '开始录制';
+    });
+
+    miniWindowBtn.addEventListener('click', () => {
+        ipcRenderer.send('mini-window');
+    });
+
+    closeWindowBtn.addEventListener('click', () => {
+        ipcRenderer.send('close-window');
+    });
+</script>
+
+</body>
+</html>
