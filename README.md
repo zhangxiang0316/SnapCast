@@ -10,3 +10,23 @@
 "saveLocal": true
 }
 ```
+
+上传文件配置
+```js
+if (config.uploadUrl) {
+    try {
+        const formData = new FormData();
+        const blob = new Blob([processedImage], {type: 'image/jpg'});
+        formData.append('image', blob, `${Date.now()}.jpg`);
+        const res = await axios.post(config.uploadUrl, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        console.log('res--------->', res.data)
+    } catch (error) {
+        console.error('上传图片失败:', error);
+    }
+}
+
+```

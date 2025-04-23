@@ -43,7 +43,6 @@ async function captureAndSave(config) {
             const res = await axios.post(config.uploadUrl, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
-                    "accessId": '3d9981c26d924e34bc25bc278a0353cd',
                 },
             });
             console.log('res--------->', res.data)
