@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>屏幕录制工具</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -19,11 +20,17 @@
 
         .control-panel {
             height: 32px;
-            display: flex;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10000;
+            cursor: move;
         }
 
         button {
-            padding: 8px 16px;
+            padding: 8px 12px;
+            font-size: 16px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -46,9 +53,17 @@
         }
 
         .selection-info {
+            margin-top: 15px;
             line-height: 32px;
+            height: 32px;
+            padding: 0 10px;
             font-size: 14px;
-            color: #ee2121;
+            color: #ffffff;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
         }
 
         #selection-overlay {
@@ -74,15 +89,17 @@
 <body>
 <div class="container">
     <div class="control-panel">
-        <button id="select-area" class="start">选择区域</button>
-        <button id="start-capture" class="start" disabled>开始录制</button>
-        <button id="stop-capture" class="stop" disabled>停止录制</button>
-        <button id="mini-window" class="stop">最小化</button>
-        <button id="close-window" class="stop">关闭应用</button>
+        <button id="select-area" class="start"><i class="fas fa-vector-square"></i></button>
+        <button id="start-capture" class="start" disabled><i class="fas fa-play"></i></button>
+        <button id="stop-capture" class="stop" disabled><i class="fas fa-stop"></i></button>
+        <button id="reset-btn" class="stop"><i class="fas fa-undo"></i></button>
+        <button id="mini-window" class="stop"><i class="fas fa-window-minimize"></i></button>
+        <button id="close-window" class="stop"><i class="fas fa-times"></i></button>
         <div class="selection-info">
             <p>选择区域: <span id="selection-coords">未选择</span></p>
         </div>
     </div>
+  
 
 </div>
 <div id="selection-overlay">
@@ -106,6 +123,27 @@
     const closeWindowBtn = document.getElementById('close-window');
     const miniWindowBtn = document.getElementById('mini-window');
     const selectionCoords = document.getElementById('selection-coords');
+    const controlPanel = document.querySelector('.control-panel');
+    
+    let isDragging = false;
+    let offsetX, offsetY;
+    
+    controlPanel.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        isDragging = true;
+        offsetX = e.clientX - controlPanel.getBoundingClientRect().left;
+        offsetY = e.clientY - controlPanel.getBoundingClientRect().top;
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        controlPanel.style.left = (e.clientX - offsetX) + 'px';
+        controlPanel.style.top = (e.clientY - offsetY) + 'px';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
 
     selectAreaBtn.addEventListener('click', () => {
         overlay.style.display = 'block';
@@ -139,6 +177,13 @@
             selectionBox.style.height = Math.abs(height) + 'px';
             selectionBox.style.left = (width < 0 ? e.screenX : startX) + 'px';
             selectionBox.style.top = (height < 0 ? e.screenY : startY) + 'px';
+            
+            // 动态更新选择区域坐标信息
+            const currentWidth = Math.abs(width);
+            const currentHeight = Math.abs(height);
+            const currentX = width < 0 ? e.clientX : startX;
+            const currentY = height < 0 ? e.clientY : startY;
+            selectionCoords.textContent = `X: ${currentX}, Y: ${currentY}, 宽度: ${currentWidth}, 高度: ${currentHeight}`;
         }
     });
 
@@ -173,7 +218,6 @@
             startCaptureBtn.disabled = true;
             stopCaptureBtn.disabled = false;
             selectAreaBtn.disabled = true;
-            startCaptureBtn.innerText = '录制中...';
         }
     });
 
@@ -182,7 +226,21 @@
         startCaptureBtn.disabled = false;
         stopCaptureBtn.disabled = true;
         selectAreaBtn.disabled = false;
-        startCaptureBtn.innerText = '开始录制';
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        // 重置选择区域
+        selectedArea = null;
+        selectionCoords.textContent = '未选择';
+        
+        // 重置按钮状态
+        startCaptureBtn.disabled = true;
+        stopCaptureBtn.disabled = true;
+        selectAreaBtn.disabled = false;
+        
+        // 隐藏选择框
+        overlay.style.display = 'none';
+        selectionBox.style.display = 'none';
     });
 
     miniWindowBtn.addEventListener('click', () => {

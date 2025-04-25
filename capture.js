@@ -32,7 +32,7 @@ async function captureAndSave(config) {
         .toBuffer();
     // 保存到本地
     if (config.saveLocal) {
-        sharp(processedImage).toFile(path.join(config.outputDir, `${Date.now()}.png`));
+        await sharp(processedImage).toFile(path.join(config.outputDir, `${Date.now()}.png`));
     }
     // 上传图片
     if (config.uploadUrl) {
